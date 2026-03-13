@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useMedicalStore } from '@/store/useMedicalStore'
 import { jsPDF } from 'jspdf'
 
 interface ExportPanelProps {
-  canvasRef: React.RefObject<{ captureImage: (format: 'png' | 'jpeg', quality?: number) => Promise<string> }>
+  captureImage: (format: 'png' | 'jpeg', quality?: number) => Promise<string>
 }
 
 const ARTERY_NAMES: Record<string, string> = {
@@ -30,18 +30,17 @@ const CONDITION_NAMES: Record<string, string> = {
   atheroma: 'Ateroma',
 }
 
-export default function ExportPanel({ canvasRef }: ExportPanelProps) {
+export default function ExportPanel({ captureImage }: ExportPanelProps) {
   const [isExporting, setIsExporting] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const diagnosis = useMedicalStore((s) => s.diagnosis)
   const inputText = useMedicalStore((s) => s.inputText)
 
   const exportAsImage = async (format: 'png' | 'jpeg') => {
-    if (!canvasRef.current) return
     setIsExporting(true)
 
     try {
-      const dataUrl = await canvasRef.current.captureImage(format, 0.95)
+      const dataUrl = await captureImage(format, 0.95)
       
       const link = document.createElement('a')
       link.download = `cardioview-${diagnosis?.artery || 'heart'}-${Date.now()}.${format}`
@@ -49,6 +48,7 @@ export default function ExportPanel({ canvasRef }: ExportPanelProps) {
       link.click()
     } catch (err) {
       console.error('Export failed:', err)
+      alert('Erro ao exportar imagem. Tente novamente.')
     } finally {
       setIsExporting(false)
       setShowMenu(false)
@@ -56,11 +56,11 @@ export default function ExportPanel({ canvasRef }: ExportPanelProps) {
   }
 
   const exportAsPDF = async () => {
-    if (!canvasRef.current || !diagnosis) return
+    if (!diagnosis) return
     setIsExporting(true)
 
     try {
-      const dataUrl = await canvasRef.current.captureImage('jpeg', 0.9)
+      const dataUrl = await captureImage('jpeg', 0.9)
       
       const pdf = new jsPDF({
         orientation: 'landscape',
@@ -150,6 +150,7 @@ export default function ExportPanel({ canvasRef }: ExportPanelProps) {
       pdf.save(`cardioview-relatorio-${Date.now()}.pdf`)
     } catch (err) {
       console.error('PDF export failed:', err)
+      alert('Erro ao gerar PDF. Tente novamente.')
     } finally {
       setIsExporting(false)
       setShowMenu(false)
@@ -182,38 +183,44 @@ export default function ExportPanel({ canvasRef }: ExportPanelProps) {
       </button>
 
       {showMenu && (
-        <div className="absolute top-full right-0 mt-2 w-48 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden z-50">
-          <button
-            onClick={() => exportAsImage('png')}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-white hover:bg-slate-700 transition-colors"
-          >
-            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Imagem PNG
-          </button>
-          <button
-            onClick={() => exportAsImage('jpeg')}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-white hover:bg-slate-700 transition-colors"
-          >
-            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Imagem JPEG
-          </button>
-          <div className="border-t border-slate-700" />
-          <button
-            onClick={exportAsPDF}
-            disabled={!diagnosis}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-white hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
-            Relatório PDF
-            {!diagnosis && <span className="text-xs text-slate-500 ml-auto">Requer diagnóstico</span>}
-          </button>
-        </div>
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setShowMenu(false)}
+          />
+          <div className="absolute top-full right-0 mt-2 w-48 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden z-50">
+            <button
+              onClick={() => exportAsImage('png')}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-white hover:bg-slate-700 transition-colors"
+            >
+              <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Imagem PNG
+            </button>
+            <button
+              onClick={() => exportAsImage('jpeg')}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-white hover:bg-slate-700 transition-colors"
+            >
+              <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Imagem JPEG
+            </button>
+            <div className="border-t border-slate-700" />
+            <button
+              onClick={exportAsPDF}
+              disabled={!diagnosis}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-white hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Relatório PDF
+              {!diagnosis && <span className="text-xs text-slate-500 ml-auto">Requer diagnóstico</span>}
+            </button>
+          </div>
+        </>
       )}
     </div>
   )

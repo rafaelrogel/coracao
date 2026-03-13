@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import DiagnosisPanel from '@/components/DiagnosisPanel'
 import PatientExplanation from '@/components/PatientExplanation'
@@ -25,9 +25,18 @@ const PresentationMode = dynamic(() => import('@/components/PresentationMode'), 
 })
 
 export default function Home() {
-  const viewerRef = useRef<{ captureImage: (format: 'png' | 'jpeg', quality?: number) => Promise<string> }>(null)
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null)
   const isFullscreen = useMedicalStore((s) => s.isFullscreen)
   const toggleFullscreen = useMedicalStore((s) => s.toggleFullscreen)
+
+  const handleCanvasReady = useCallback((canvas: HTMLCanvasElement | null) => {
+    setCanvasElement(canvas)
+  }, [])
+
+  const captureImage = useCallback(async (format: 'png' | 'jpeg', quality = 0.95): Promise<string> => {
+    if (!canvasElement) throw new Error('Canvas not available')
+    return canvasElement.toDataURL(`image/${format}`, quality)
+  }, [canvasElement])
 
   return (
     <>
@@ -53,7 +62,7 @@ export default function Home() {
             </div>
 
             <div className="flex items-center gap-2">
-              <ExportPanel canvasRef={viewerRef} />
+              <ExportPanel captureImage={captureImage} />
               
               <button
                 onClick={toggleFullscreen}
@@ -69,7 +78,7 @@ export default function Home() {
 
           {/* 3D Viewer */}
           <div className={`flex-1 ${isFullscreen ? 'fixed inset-0 z-40' : ''}`}>
-            <HeartViewer ref={viewerRef} />
+            <HeartViewer onCanvasReady={handleCanvasReady} />
             
             {isFullscreen && (
               <button

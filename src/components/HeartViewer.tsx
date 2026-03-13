@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef, useMemo, forwardRef, useImperativeHandle, useEffect } from 'react'
+import React, { useRef, useMemo, useEffect, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Html, Environment, useGLTF, PerspectiveCamera } from '@react-three/drei'
+import { OrbitControls, Html, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 import { useMedicalStore } from '@/store/useMedicalStore'
 import { ArteryType, ArteryConfig, DiagnosisData, ConditionType } from '@/types/medical'
@@ -492,35 +492,31 @@ function CameraController() {
   return null
 }
 
-export interface HeartViewerHandle {
-  captureImage: (format: 'png' | 'jpeg', quality?: number) => Promise<string>
-}
-
 interface HeartViewerProps {
   className?: string
+  onCanvasReady?: (canvas: HTMLCanvasElement | null) => void
 }
 
-const HeartViewer = forwardRef<HeartViewerHandle, HeartViewerProps>(({ className = '' }, ref) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+export default function HeartViewer({ className = '', onCanvasReady }: HeartViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const isPresentationMode = useMedicalStore((s) => s.isPresentationMode)
   const diagnosis = useMedicalStore((s) => s.diagnosis)
 
-  useImperativeHandle(ref, () => ({
-    captureImage: async (format: 'png' | 'jpeg', quality = 0.95) => {
-      if (!canvasRef.current) throw new Error('Canvas not available')
-      
-      const canvas = canvasRef.current
-      const dataUrl = canvas.toDataURL(`image/${format}`, quality)
-      return dataUrl
+  const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
+    if (onCanvasReady) {
+      onCanvasReady(gl.domElement)
     }
-  }))
+  }, [onCanvasReady])
 
   return (
-    <div className={`w-full h-full bg-gradient-to-b from-clinical-navy to-slate-900 rounded-xl overflow-hidden relative ${className}`}>
+    <div 
+      ref={containerRef}
+      className={`w-full h-full bg-gradient-to-b from-clinical-navy to-slate-900 rounded-xl overflow-hidden relative ${className}`}
+    >
       <Canvas
-        ref={canvasRef}
         camera={{ position: [0, 1, 5], fov: 45 }}
         gl={{ antialias: true, preserveDrawingBuffer: true }}
+        onCreated={handleCreated}
       >
         <CameraController />
         <ambientLight intensity={0.4} />
@@ -559,8 +555,4 @@ const HeartViewer = forwardRef<HeartViewerHandle, HeartViewerProps>(({ className
       )}
     </div>
   )
-})
-
-HeartViewer.displayName = 'HeartViewer'
-
-export default HeartViewer
+}

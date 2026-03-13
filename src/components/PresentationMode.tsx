@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useMedicalStore } from '@/store/useMedicalStore'
 import ExportPanel from './ExportPanel'
@@ -39,15 +39,28 @@ const CONDITION_NAMES: Record<string, string> = {
 export default function PresentationMode() {
   const { isPresentationMode, togglePresentationMode, diagnosis } = useMedicalStore()
   const containerRef = useRef<HTMLDivElement>(null)
-  const viewerRef = useRef<{ captureImage: (format: 'png' | 'jpeg', quality?: number) => Promise<string> }>(null)
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null)
+
+  const handleCanvasReady = useCallback((canvas: HTMLCanvasElement | null) => {
+    setCanvasElement(canvas)
+  }, [])
+
+  const captureImage = useCallback(async (format: 'png' | 'jpeg', quality = 0.95): Promise<string> => {
+    if (!canvasElement) throw new Error('Canvas not available')
+    return canvasElement.toDataURL(`image/${format}`, quality)
+  }, [canvasElement])
 
   const handleFullscreen = useCallback(async () => {
     if (!containerRef.current) return
 
-    if (!document.fullscreenElement) {
-      await containerRef.current.requestFullscreen()
-    } else {
-      await document.exitFullscreen()
+    try {
+      if (!document.fullscreenElement) {
+        await containerRef.current.requestFullscreen()
+      } else {
+        await document.exitFullscreen()
+      }
+    } catch (err) {
+      console.error('Fullscreen error:', err)
     }
   }, [])
 
@@ -55,7 +68,7 @@ export default function PresentationMode() {
     if (e.key === 'Escape' && isPresentationMode) {
       togglePresentationMode()
     }
-    if (e.key === 'f' || e.key === 'F') {
+    if ((e.key === 'f' || e.key === 'F') && isPresentationMode) {
       handleFullscreen()
     }
   }, [isPresentationMode, togglePresentationMode, handleFullscreen])
@@ -64,12 +77,6 @@ export default function PresentationMode() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
-
-  useEffect(() => {
-    if (isPresentationMode && containerRef.current) {
-      containerRef.current.requestFullscreen().catch(() => {})
-    }
-  }, [isPresentationMode])
 
   if (!isPresentationMode) return null
 
@@ -92,7 +99,7 @@ export default function PresentationMode() {
         </div>
 
         <div className="flex items-center gap-3">
-          <ExportPanel canvasRef={viewerRef} />
+          <ExportPanel captureImage={captureImage} />
           
           <button
             onClick={handleFullscreen}
@@ -120,7 +127,7 @@ export default function PresentationMode() {
       <div className="flex-1 flex">
         {/* 3D Viewer */}
         <div className="flex-1 relative">
-          <HeartViewer ref={viewerRef} className="rounded-none" />
+          <HeartViewer onCanvasReady={handleCanvasReady} className="rounded-none" />
         </div>
 
         {/* Info Panel */}
