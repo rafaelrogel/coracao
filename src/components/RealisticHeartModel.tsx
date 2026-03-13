@@ -49,7 +49,7 @@ const CONDITION_CONFIG: Record<ConditionType, { color: string; emissive: string;
 }
 
 // GLTF Heart model component
-function GLTFHeartModel({ path, scale = 0.015 }: { path: string; scale?: number }) {
+function GLTFHeartModel({ path, scale = 15 }: { path: string; scale?: number }) {
   const groupRef = useRef<THREE.Group>(null)
   const { scene } = useGLTF(path)
   const clonedScene = scene.clone()
