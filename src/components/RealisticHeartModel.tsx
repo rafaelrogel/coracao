@@ -27,14 +27,15 @@ const MODEL_PATHS = [
   '/models/heart/scene.fbx',
 ]
 
-// Lesion marker positions for each artery (approximate positions on the model)
+// Lesion marker positions adjusted for Sketchfab neshallads model (scale 0.5)
+// Positions are relative to the heart center
 const ARTERY_POSITIONS: Record<string, THREE.Vector3> = {
-  LAD: new THREE.Vector3(-0.3, 0.5, 0.8),
-  RCA: new THREE.Vector3(0.5, 0.3, 0.5),
-  LCx: new THREE.Vector3(-0.5, 0.3, 0.2),
-  LMCA: new THREE.Vector3(-0.1, 0.7, 0.6),
-  aorta: new THREE.Vector3(0, 1.2, 0.3),
-  pulmonary: new THREE.Vector3(0.2, 1.0, 0.5),
+  LAD: new THREE.Vector3(0.15, 0.05, 0.2),           // Arteria Descendente Anterior - frente do coracao
+  RCA: new THREE.Vector3(-0.18, -0.05, 0.1),        // Arteria Coronaria Direita - lado direito
+  LCx: new THREE.Vector3(0.2, 0.0, -0.05),          // Arteria Circunflexa - lado esquerdo/atras
+  LMCA: new THREE.Vector3(0.1, 0.15, 0.15),         // Tronco da Coronaria Esquerda - topo
+  aorta: new THREE.Vector3(0, 0.35, 0.05),          // Aorta - topo central
+  pulmonary: new THREE.Vector3(-0.08, 0.28, 0.12),  // Arteria Pulmonar - topo frontal
 }
 
 const CONDITION_CONFIG: Record<ConditionType, { color: string; emissive: string; label: string }> = {
@@ -128,19 +129,19 @@ function HeartModel({ modelPath }: { modelPath: string }) {
 // Lesion marker component
 function LesionMarker({ diagnosis }: { diagnosis: DiagnosisData }) {
   const markerRef = useRef<THREE.Group>(null)
-  const position = ARTERY_POSITIONS[diagnosis.artery] || new THREE.Vector3(0, 0.5, 0.5)
+  const position = ARTERY_POSITIONS[diagnosis.artery] || new THREE.Vector3(0, 0.1, 0.2)
   const config = CONDITION_CONFIG[diagnosis.type]
 
   useFrame((state) => {
     if (markerRef.current) {
-      const pulse = 1 + Math.sin(state.clock.elapsedTime * 3) * 0.3
+      const pulse = 1 + Math.sin(state.clock.elapsedTime * 3) * 0.2
       markerRef.current.scale.setScalar(pulse)
     }
   })
 
   // Different visualizations based on condition
   const renderCondition = () => {
-    const baseSize = 0.08
+    const baseSize = 0.025 // Tamanho ajustado para escala 0.5
 
     switch (diagnosis.type) {
       case 'plaque':
@@ -269,13 +270,35 @@ function LesionMarker({ diagnosis }: { diagnosis: DiagnosisData }) {
     <group position={position}>
       <group ref={markerRef}>
         {renderCondition()}
+        
+        {/* Anel indicador pulsante */}
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.03, 0.04, 32]} />
+          <meshBasicMaterial color={config.color} transparent opacity={0.8} side={THREE.DoubleSide} />
+        </mesh>
+        
+        {/* Esfera central brilhante */}
+        <mesh>
+          <sphereGeometry args={[0.015, 16, 16]} />
+          <meshStandardMaterial 
+            color={config.color} 
+            emissive={config.color} 
+            emissiveIntensity={2}
+          />
+        </mesh>
       </group>
       
-      {/* Glow effect */}
-      <pointLight color={config.color} intensity={0.5} distance={0.5} />
+      {/* Glow effect mais forte */}
+      <pointLight color={config.color} intensity={1.5} distance={0.3} />
+      
+      {/* Linha conectando ao coracao */}
+      <mesh position={[0, -0.02, 0]}>
+        <cylinderGeometry args={[0.002, 0.002, 0.04, 8]} />
+        <meshBasicMaterial color={config.color} />
+      </mesh>
       
       {/* Info tooltip */}
-      <Html position={[0.15, 0.1, 0]} distanceFactor={2}>
+      <Html position={[0.08, 0.05, 0]} distanceFactor={1.5}>
         <div className="bg-black/90 border-2 border-red-500 rounded-lg p-3 text-white text-xs min-w-[160px] shadow-2xl backdrop-blur-sm pointer-events-none">
           <div className="text-red-400 font-bold text-sm mb-1">{config.label}</div>
           <div className="text-gray-300">{diagnosis.artery}</div>
