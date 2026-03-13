@@ -6,12 +6,26 @@ import { useMedicalStore } from '@/store/useMedicalStore'
 const EXAMPLE_DIAGNOSES = [
   'Artéria Descendente Anterior com 80% de obstrução',
   'Placa de ateroma na carótida interna direita com 60% de estenose',
-  'Estenose severa de 90% na coronária direita',
-  'Obstrução moderada de 45% na circunflexa',
+  'Aneurisma de 3cm na aorta ascendente',
+  'Calcificação severa na coronária direita com 70% de oclusão',
+  'Trombo na artéria pulmonar com 50% de obstrução',
+  'Dissecção da aorta tipo A',
 ]
 
 export default function DiagnosisPanel() {
-  const { inputText, setInputText, setDiagnosis, setLoading, setError, isLoading, reset } = useMedicalStore()
+  const { 
+    inputText, 
+    setInputText, 
+    setDiagnosis, 
+    setLoading, 
+    setError, 
+    isLoading, 
+    reset,
+    addToHistory,
+    toggleHistory,
+    togglePresentationMode,
+    history
+  } = useMedicalStore()
   const [localInput, setLocalInput] = useState(inputText)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,7 +49,20 @@ export default function DiagnosisPanel() {
         throw new Error(data.error || 'Erro ao processar diagnóstico')
       }
 
-      setDiagnosis(data.diagnosis)
+      const diagnosisWithId = {
+        ...data.diagnosis,
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+      }
+
+      setDiagnosis(diagnosisWithId)
+
+      addToHistory({
+        id: crypto.randomUUID(),
+        diagnosis: diagnosisWithId,
+        inputText: localInput,
+        timestamp: Date.now(),
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido')
     } finally {
@@ -73,7 +100,7 @@ export default function DiagnosisPanel() {
         <textarea
           value={localInput}
           onChange={(e) => setLocalInput(e.target.value)}
-          placeholder="Ex: Artéria Descendente Anterior com 80% de obstrução"
+          placeholder="Ex: Artéria Descendente Anterior com 80% de obstrução, aneurisma na aorta, placa calcificada..."
           className="w-full h-32 px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-clinical-accent focus:border-transparent resize-none"
           disabled={isLoading}
         />
@@ -105,22 +132,49 @@ export default function DiagnosisPanel() {
             type="button"
             onClick={handleReset}
             className="py-3 px-4 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            title="Limpar"
           >
-            Limpar
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Action buttons */}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={toggleHistory}
+            className="py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Histórico {history.length > 0 && <span className="bg-clinical-accent text-white text-xs px-1.5 rounded-full">{history.length}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={togglePresentationMode}
+            className="py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Apresentar
           </button>
         </div>
 
         <div className="mt-6">
-          <p className="text-xs text-slate-500 mb-2">Exemplos rápidos:</p>
+          <p className="text-xs text-slate-500 mb-2">Exemplos (clique para usar):</p>
           <div className="flex flex-wrap gap-2">
             {EXAMPLE_DIAGNOSES.map((example, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => handleExampleClick(example)}
-                className="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition-colors border border-slate-700"
+                className="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition-colors border border-slate-700 hover:border-slate-600"
               >
-                {example.length > 35 ? example.slice(0, 35) + '...' : example}
+                {example.length > 40 ? example.slice(0, 40) + '...' : example}
               </button>
             ))}
           </div>

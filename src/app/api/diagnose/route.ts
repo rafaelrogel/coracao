@@ -19,11 +19,12 @@ IMPORTANTE: Responda APENAS com JSON válido, sem markdown, sem explicações ad
 
 Formato de saída obrigatório:
 {
-  "artery": "LAD" | "RCA" | "LCx" | "LMCA" | "carotid_left" | "carotid_right",
-  "blockage": <número de 0 a 100 representando % de obstrução>,
-  "type": "stenosis" | "plaque" | "aneurysm" | "occlusion",
+  "artery": "LAD" | "RCA" | "LCx" | "LMCA" | "carotid_left" | "carotid_right" | "aorta" | "pulmonary",
+  "blockage": <número de 0 a 100 representando % de obstrução ou comprometimento>,
+  "type": "stenosis" | "plaque" | "aneurysm" | "occlusion" | "calcification" | "dissection" | "thrombus" | "atheroma",
   "severity": "mild" | "moderate" | "severe" | "critical",
-  "patient_explanation": "<Explicação acolhedora em português para o paciente entender sua condição, máximo 2 frases>"
+  "plaqueType": "soft" | "fibrous" | "calcified" | "mixed" (opcional, apenas se for placa),
+  "patient_explanation": "<Explicação acolhedora em português para o paciente entender sua condição, máximo 3 frases, linguagem simples>"
 }
 
 Mapeamento de artérias:
@@ -33,12 +34,26 @@ Mapeamento de artérias:
 - "Tronco da Coronária Esquerda" ou "TCE" → "LMCA"
 - "Carótida Esquerda" ou "Carótida Interna Esquerda" → "carotid_left"
 - "Carótida Direita" ou "Carótida Interna Direita" → "carotid_right"
+- "Aorta" (qualquer segmento) → "aorta"
+- "Pulmonar" ou "Artéria Pulmonar" → "pulmonary"
 
-Severidade baseada na obstrução:
+Mapeamento de condições:
+- Estenose, estreitamento → "stenosis"
+- Placa, ateroma, aterosclerose → "plaque" ou "atheroma"
+- Aneurisma, dilatação → "aneurysm"
+- Oclusão, bloqueio total → "occlusion"
+- Calcificação, calcificado → "calcification"
+- Dissecção → "dissection"
+- Trombo, coágulo → "thrombus"
+
+Severidade baseada na obstrução/gravidade:
 - 0-30%: mild
 - 31-50%: moderate
 - 51-70%: severe
-- 71-100%: critical`
+- 71-100%: critical
+
+Para aneurismas: baseie a severidade no tamanho (pequeno=mild, médio=moderate, grande=severe, muito grande=critical).
+Para dissecções: geralmente severe ou critical.`
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,7 +76,7 @@ export async function POST(request: NextRequest) {
         { role: 'user', content: text },
       ],
       temperature: 0.1,
-      max_tokens: 500,
+      max_tokens: 600,
     })
 
     const content = completion.choices[0]?.message?.content
@@ -80,12 +95,25 @@ export async function POST(request: NextRequest) {
 
     const diagnosis = JSON.parse(cleanedContent)
 
-    const validArteries = ['LAD', 'RCA', 'LCx', 'LMCA', 'carotid_left', 'carotid_right']
+    const validArteries = ['LAD', 'RCA', 'LCx', 'LMCA', 'carotid_left', 'carotid_right', 'aorta', 'pulmonary']
     if (!validArteries.includes(diagnosis.artery)) {
       return NextResponse.json(
         { error: 'Artéria não reconhecida no diagnóstico' },
         { status: 422 }
       )
+    }
+
+    const validTypes = ['stenosis', 'plaque', 'aneurysm', 'occlusion', 'calcification', 'dissection', 'thrombus', 'atheroma']
+    if (!validTypes.includes(diagnosis.type)) {
+      diagnosis.type = 'stenosis'
+    }
+
+    const validSeverities = ['mild', 'moderate', 'severe', 'critical']
+    if (!validSeverities.includes(diagnosis.severity)) {
+      if (diagnosis.blockage <= 30) diagnosis.severity = 'mild'
+      else if (diagnosis.blockage <= 50) diagnosis.severity = 'moderate'
+      else if (diagnosis.blockage <= 70) diagnosis.severity = 'severe'
+      else diagnosis.severity = 'critical'
     }
 
     return NextResponse.json({ diagnosis })
@@ -96,6 +124,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Erro ao processar resposta do modelo' },
         { status: 500 }
+      )
+    }
+
+    if (error instanceof Error && error.message.includes('API')) {
+      return NextResponse.json(
+        { error: 'Erro de conexão com o serviço de IA' },
+        { status: 503 }
       )
     }
 

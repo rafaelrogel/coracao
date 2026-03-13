@@ -3,10 +3,10 @@
 import { useMedicalStore } from '@/store/useMedicalStore'
 
 const SEVERITY_CONFIG = {
-  mild: { label: 'Leve', color: 'bg-green-500', textColor: 'text-green-400' },
-  moderate: { label: 'Moderado', color: 'bg-yellow-500', textColor: 'text-yellow-400' },
-  severe: { label: 'Severo', color: 'bg-orange-500', textColor: 'text-orange-400' },
-  critical: { label: 'Crítico', color: 'bg-red-500', textColor: 'text-red-400' },
+  mild: { label: 'Leve', color: 'bg-green-500', textColor: 'text-green-400', description: 'Baixo risco' },
+  moderate: { label: 'Moderado', color: 'bg-yellow-500', textColor: 'text-yellow-400', description: 'Requer atenção' },
+  severe: { label: 'Severo', color: 'bg-orange-500', textColor: 'text-orange-400', description: 'Tratamento recomendado' },
+  critical: { label: 'Crítico', color: 'bg-red-500', textColor: 'text-red-400', description: 'Ação urgente' },
 }
 
 const ARTERY_NAMES: Record<string, string> = {
@@ -16,6 +16,30 @@ const ARTERY_NAMES: Record<string, string> = {
   LMCA: 'Tronco da Coronária Esquerda',
   carotid_left: 'Carótida Interna Esquerda',
   carotid_right: 'Carótida Interna Direita',
+  aorta: 'Aorta',
+  pulmonary: 'Artéria Pulmonar',
+}
+
+const CONDITION_NAMES: Record<string, string> = {
+  stenosis: 'Estenose',
+  plaque: 'Placa',
+  aneurysm: 'Aneurisma',
+  occlusion: 'Oclusão',
+  calcification: 'Calcificação',
+  dissection: 'Dissecção',
+  thrombus: 'Trombo',
+  atheroma: 'Ateroma',
+}
+
+const CONDITION_ICONS: Record<string, string> = {
+  stenosis: '🔴',
+  plaque: '🟠',
+  aneurysm: '🔵',
+  occlusion: '⚫',
+  calcification: '⚪',
+  dissection: '🟣',
+  thrombus: '🟤',
+  atheroma: '🟡',
 }
 
 export default function PatientExplanation() {
@@ -69,12 +93,14 @@ export default function PatientExplanation() {
   const severity = SEVERITY_CONFIG[diagnosis.severity || 'moderate']
 
   return (
-    <div className="p-6 border-t border-slate-700 space-y-4">
+    <div className="p-6 border-t border-slate-700 space-y-4 overflow-y-auto">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-slate-300">Resultado da Análise</h3>
-        <span className={`text-xs px-2 py-1 rounded-full ${severity.color} text-white font-medium`}>
-          {severity.label}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs px-2 py-1 rounded-full ${severity.color} text-white font-medium`}>
+            {severity.label}
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -88,6 +114,16 @@ export default function PatientExplanation() {
           <p className="text-xs text-slate-500">Obstrução</p>
           <p className={`text-lg font-bold mt-1 ${severity.textColor}`}>
             {diagnosis.blockage}%
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 rounded-lg p-3">
+        <p className="text-xs text-slate-500">Condição</p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-lg">{CONDITION_ICONS[diagnosis.type] || '❓'}</span>
+          <p className="text-sm text-white font-medium capitalize">
+            {CONDITION_NAMES[diagnosis.type] || diagnosis.type}
           </p>
         </div>
       </div>
@@ -106,9 +142,10 @@ export default function PatientExplanation() {
         </div>
       </div>
 
-      <div className="pt-2">
-        <p className="text-xs text-slate-600">
-          Tipo: <span className="text-slate-400 capitalize">{diagnosis.type}</span>
+      <div className="bg-gradient-to-r from-slate-800/30 to-slate-800/10 rounded-lg p-3 border-l-2 border-clinical-accent">
+        <p className="text-xs text-slate-400">
+          <span className="font-medium text-clinical-accent">{severity.description}</span>
+          {' · '}Tipo: <span className="capitalize">{CONDITION_NAMES[diagnosis.type] || diagnosis.type}</span>
         </p>
       </div>
     </div>
