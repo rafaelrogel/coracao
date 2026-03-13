@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { 
   OrbitControls, 
   useGLTF, 
+  useFBX,
   Html, 
   Environment, 
   ContactShadows,
@@ -16,8 +17,15 @@ import * as THREE from 'three'
 import { useMedicalStore } from '@/store/useMedicalStore'
 import { DiagnosisData, ConditionType } from '@/types/medical'
 
-// Preload the model
-useGLTF.preload('/models/heart/scene.gltf')
+// Supported model paths (will try in order)
+const MODEL_PATHS = [
+  '/models/heart/scene.gltf',
+  '/models/heart/scene.glb', 
+  '/models/heart/heart.gltf',
+  '/models/heart/heart.glb',
+  '/models/heart/heart.fbx',
+  '/models/heart/scene.fbx',
+]
 
 // Lesion marker positions for each artery (approximate positions on the model)
 const ARTERY_POSITIONS: Record<string, THREE.Vector3> = {
@@ -40,18 +48,18 @@ const CONDITION_CONFIG: Record<ConditionType, { color: string; emissive: string;
   atheroma: { color: '#ca8a04', emissive: '#713f12', label: 'Ateroma' },
 }
 
-// Heart model component
-function HeartModel({ diagnosis }: { diagnosis: DiagnosisData | null }) {
+// GLTF Heart model component
+function GLTFHeartModel({ path, scale = 0.015 }: { path: string; scale?: number }) {
   const groupRef = useRef<THREE.Group>(null)
-  const { scene } = useGLTF('/models/heart/scene.gltf')
+  const { scene } = useGLTF(path)
   const clonedScene = scene.clone()
 
   // Heartbeat animation
   useFrame((state) => {
     if (groupRef.current) {
       const beat = Math.sin(state.clock.elapsedTime * 1.2)
-      const scale = 1 + beat * 0.02
-      groupRef.current.scale.setScalar(scale * 0.015) // Adjust scale based on model size
+      const s = 1 + beat * 0.02
+      groupRef.current.scale.setScalar(s * scale)
     }
   })
 
@@ -64,6 +72,57 @@ function HeartModel({ diagnosis }: { diagnosis: DiagnosisData | null }) {
       />
     </group>
   )
+}
+
+// FBX Heart model component
+function FBXHeartModel({ path, scale = 0.01 }: { path: string; scale?: number }) {
+  const groupRef = useRef<THREE.Group>(null)
+  const fbx = useFBX(path)
+  const clonedFbx = fbx.clone()
+
+  // Apply materials
+  clonedFbx.traverse((child: any) => {
+    if (child.isMesh) {
+      child.castShadow = true
+      child.receiveShadow = true
+      if (!child.material.map) {
+        child.material = new THREE.MeshStandardMaterial({
+          color: '#8b2942',
+          roughness: 0.6,
+          metalness: 0.1,
+        })
+      }
+    }
+  })
+
+  // Heartbeat animation
+  useFrame((state) => {
+    if (groupRef.current) {
+      const beat = Math.sin(state.clock.elapsedTime * 1.2)
+      const s = 1 + beat * 0.02
+      groupRef.current.scale.setScalar(s * scale)
+    }
+  })
+
+  return (
+    <group ref={groupRef}>
+      <primitive 
+        object={clonedFbx} 
+        position={[0, 0, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      />
+    </group>
+  )
+}
+
+// Heart model wrapper that detects format
+function HeartModel({ modelPath }: { modelPath: string }) {
+  const isFBX = modelPath.toLowerCase().endsWith('.fbx')
+  
+  if (isFBX) {
+    return <FBXHeartModel path={modelPath} />
+  }
+  return <GLTFHeartModel path={modelPath} />
 }
 
 // Lesion marker component
@@ -286,20 +345,41 @@ function ModelNotFound() {
       <div className="text-center max-w-md p-6 bg-slate-900/95 rounded-xl border border-slate-700">
         <div className="text-4xl mb-4">❤️</div>
         <h3 className="text-white font-bold text-lg mb-2">Modelo 3D nao encontrado</h3>
-        <p className="text-slate-400 text-sm mb-4">
-          Baixe o modelo do Sketchfab e coloque em:
+        <p className="text-slate-400 text-sm mb-3">
+          Baixe um modelo e coloque em uma destas pastas:
         </p>
-        <code className="text-xs bg-slate-800 px-3 py-2 rounded block text-green-400">
-          public/models/heart/scene.gltf
-        </code>
-        <a 
-          href="https://sketchfab.com/3d-models/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
-        >
-          Baixar do Sketchfab
-        </a>
+        <div className="text-xs bg-slate-800 px-3 py-2 rounded text-left text-green-400 space-y-1">
+          <div>public/models/heart/scene.gltf</div>
+          <div>public/models/heart/scene.glb</div>
+          <div>public/models/heart/heart.fbx</div>
+        </div>
+        <p className="text-slate-500 text-xs mt-3">Formatos: GLTF, GLB ou FBX</p>
+        <div className="flex gap-2 mt-4 justify-center">
+          <a 
+            href="https://www.get3dmodels.com/anatomy/human-heart/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs"
+          >
+            Get3DModels
+          </a>
+          <a 
+            href="https://free3d.com/3d-models/heart"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs"
+          >
+            Free3D
+          </a>
+          <a 
+            href="https://sketchfab.com/3d-models/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs"
+          >
+            Sketchfab
+          </a>
+        </div>
       </div>
     </Html>
   )
@@ -307,25 +387,43 @@ function ModelNotFound() {
 
 // Scene content
 function SceneContent({ diagnosis }: { diagnosis: DiagnosisData | null }) {
+  const [modelPath, setModelPath] = useState<string | null>(null)
   const [modelError, setModelError] = useState(false)
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    // Check if model exists
-    fetch('/models/heart/scene.gltf', { method: 'HEAD' })
-      .then(res => {
-        if (!res.ok) setModelError(true)
-      })
-      .catch(() => setModelError(true))
+    // Check which model exists
+    const checkModels = async () => {
+      for (const path of MODEL_PATHS) {
+        try {
+          const res = await fetch(path, { method: 'HEAD' })
+          if (res.ok) {
+            setModelPath(path)
+            setChecking(false)
+            return
+          }
+        } catch {
+          continue
+        }
+      }
+      setModelError(true)
+      setChecking(false)
+    }
+    checkModels()
   }, [])
 
-  if (modelError) {
+  if (checking) {
+    return <LoadingFallback />
+  }
+
+  if (modelError || !modelPath) {
     return <ModelNotFound />
   }
 
   return (
     <>
       <Suspense fallback={<LoadingFallback />}>
-        <HeartModel diagnosis={diagnosis} />
+        <HeartModel modelPath={modelPath} />
         {diagnosis && <LesionMarker diagnosis={diagnosis} />}
       </Suspense>
       <CameraController diagnosis={diagnosis} />
