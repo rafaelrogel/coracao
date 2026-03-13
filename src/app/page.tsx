@@ -8,13 +8,13 @@ import HistoryPanel from '@/components/HistoryPanel'
 import ExportPanel from '@/components/ExportPanel'
 import { useMedicalStore } from '@/store/useMedicalStore'
 
-const RealisticHeart = dynamic(() => import('@/components/RealisticHeart'), { 
+const RealisticHeartModel = dynamic(() => import('@/components/RealisticHeartModel'), { 
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center bg-slate-950 rounded-xl">
       <div className="text-center">
-        <div className="animate-spin h-12 w-12 border-4 border-clinical-accent border-t-transparent rounded-full mx-auto"></div>
-        <p className="text-slate-400 mt-4">Carregando modelo anatômico...</p>
+        <div className="animate-spin h-12 w-12 border-4 border-red-500 border-t-transparent rounded-full mx-auto"></div>
+        <p className="text-slate-400 mt-4">Carregando modelo realista...</p>
       </div>
     </div>
   )
@@ -70,7 +70,7 @@ export default function Home() {
           </div>
 
           <div className={`flex-1 ${isFullscreen ? 'fixed inset-0 z-40' : ''}`}>
-            <RealisticHeart onCanvasReady={handleCanvasReady} />
+            <RealisticHeartModel onCanvasReady={handleCanvasReady} />
             {isFullscreen && (
               <button
                 onClick={toggleFullscreen}
@@ -160,7 +160,7 @@ function PresentationMode({ captureImage }: { captureImage: (f: 'png' | 'jpeg', 
 
       <div className="flex-1 flex">
         <div className="flex-1">
-          <RealisticHeart onCanvasReady={setCanvas} className="rounded-none" />
+          <RealisticHeartModel onCanvasReady={setCanvas} className="rounded-none" />
         </div>
         {diagnosis && (
           <aside className="w-96 bg-slate-900/95 border-l border-slate-800 p-6 overflow-y-auto">
