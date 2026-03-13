@@ -16,13 +16,16 @@ import {
 import * as THREE from 'three'
 import { useMedicalStore } from '@/store/useMedicalStore'
 import { DiagnosisData, ConditionType } from '@/types/medical'
-import { heartModels, getModelById, recommendedModels } from '@/data/heartModels'
-import dynamic from 'next/dynamic'
 
-const ModelSelector = dynamic(() => import('./ModelSelector'), { ssr: false })
-
-// Default model to use
-const DEFAULT_MODEL = 'CM0037_Whole_NIH3D.glb'
+// Supported model paths (will try in order)
+const MODEL_PATHS = [
+  '/models/heart/scene.gltf',
+  '/models/heart/scene.glb', 
+  '/models/heart/heart.gltf',
+  '/models/heart/heart.glb',
+  '/models/heart/heart.fbx',
+  '/models/heart/scene.fbx',
+]
 
 // Lesion marker positions for each artery (approximate positions on the model)
 const ARTERY_POSITIONS: Record<string, THREE.Vector3> = {
@@ -383,32 +386,37 @@ function ModelNotFound() {
 }
 
 // Scene content
-function SceneContent({ diagnosis, modelPath }: { diagnosis: DiagnosisData | null; modelPath: string }) {
+function SceneContent({ diagnosis }: { diagnosis: DiagnosisData | null }) {
+  const [modelPath, setModelPath] = useState<string | null>(null)
   const [modelError, setModelError] = useState(false)
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    // Reset state when model changes
-    setChecking(true)
-    setModelError(false)
-    
-    // Check if model exists
-    fetch(modelPath, { method: 'HEAD' })
-      .then(res => {
-        if (!res.ok) setModelError(true)
-        setChecking(false)
-      })
-      .catch(() => {
-        setModelError(true)
-        setChecking(false)
-      })
-  }, [modelPath])
+    // Check which model exists
+    const checkModels = async () => {
+      for (const path of MODEL_PATHS) {
+        try {
+          const res = await fetch(path, { method: 'HEAD' })
+          if (res.ok) {
+            setModelPath(path)
+            setChecking(false)
+            return
+          }
+        } catch {
+          continue
+        }
+      }
+      setModelError(true)
+      setChecking(false)
+    }
+    checkModels()
+  }, [])
 
   if (checking) {
     return <LoadingFallback />
   }
 
-  if (modelError) {
+  if (modelError || !modelPath) {
     return <ModelNotFound />
   }
 
@@ -430,17 +438,10 @@ interface RealisticHeartModelProps {
 
 export default function RealisticHeartModel({ onCanvasReady, className = '' }: RealisticHeartModelProps) {
   const diagnosis = useMedicalStore((s) => s.diagnosis)
-  const [currentModel, setCurrentModel] = useState(DEFAULT_MODEL)
-  const [showModelSelector, setShowModelSelector] = useState(false)
-  const modelPath = `/models/heart/${currentModel}`
-
-  // Find current model info
-  const currentModelInfo = heartModels.find(m => m.filename === currentModel)
 
   return (
     <div className={`w-full h-full bg-gradient-to-b from-gray-950 via-slate-900 to-black rounded-xl overflow-hidden relative ${className}`}>
       <Canvas
-        key={currentModel} // Force re-render when model changes
         camera={{ position: [0, 0, 2.5], fov: 45 }}
         gl={{ 
           antialias: true, 
@@ -471,33 +472,11 @@ export default function RealisticHeartModel({ onCanvasReady, className = '' }: R
           castShadow
         />
 
-        <SceneContent diagnosis={diagnosis} modelPath={modelPath} />
+        <SceneContent diagnosis={diagnosis} />
 
         <Environment preset="studio" />
         <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={4} blur={2.5} />
       </Canvas>
-
-      {/* Model selector button */}
-      <button
-        onClick={() => setShowModelSelector(true)}
-        className="absolute top-4 left-4 bg-black/80 hover:bg-black backdrop-blur-sm border border-slate-700 hover:border-red-500 rounded-xl px-4 py-2 text-sm text-white transition-all flex items-center gap-2"
-      >
-        <span>❤️</span>
-        <span className="hidden sm:inline">{currentModelInfo?.name || 'Selecionar Modelo'}</span>
-        <span className="sm:hidden">Modelos</span>
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {/* Model Selector Modal */}
-      {showModelSelector && (
-        <ModelSelector
-          currentModel={currentModel}
-          onSelectModel={setCurrentModel}
-          onClose={() => setShowModelSelector(false)}
-        />
-      )}
 
       {/* Controls hint */}
       <div className="absolute bottom-4 left-4 text-xs text-gray-500 bg-black/50 px-3 py-2 rounded-lg backdrop-blur-sm">
@@ -510,7 +489,7 @@ export default function RealisticHeartModel({ onCanvasReady, className = '' }: R
 
       {/* Attribution */}
       <div className="absolute bottom-4 right-4 text-xs text-gray-600">
-        Fonte: NIH 3D Heart Library
+        Modelo: neshallads (Sketchfab CC-BY)
       </div>
 
       {/* Diagnosis info */}
