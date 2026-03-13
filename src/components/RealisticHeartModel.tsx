@@ -297,25 +297,7 @@ function LesionMarker({ diagnosis }: { diagnosis: DiagnosisData }) {
         <meshBasicMaterial color={config.color} />
       </mesh>
       
-      {/* Info tooltip */}
-      <Html position={[0.08, 0.05, 0]} distanceFactor={1.5}>
-        <div className="bg-black/90 border-2 border-red-500 rounded-lg p-3 text-white text-xs min-w-[160px] shadow-2xl backdrop-blur-sm pointer-events-none">
-          <div className="text-red-400 font-bold text-sm mb-1">{config.label}</div>
-          <div className="text-gray-300">{diagnosis.artery}</div>
-          <div className="mt-2 flex items-center gap-2">
-            <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className={`h-full ${
-                  diagnosis.blockage > 70 ? 'bg-red-500' :
-                  diagnosis.blockage > 50 ? 'bg-orange-500' : 'bg-yellow-500'
-                }`}
-                style={{ width: `${diagnosis.blockage}%` }}
-              />
-            </div>
-            <span className="font-bold">{diagnosis.blockage}%</span>
-          </div>
-        </div>
-      </Html>
+
     </group>
   )
 }
